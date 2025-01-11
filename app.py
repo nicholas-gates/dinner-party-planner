@@ -21,11 +21,14 @@ Environment Variables:
     OPENAI_API_KEY: Required for AI agent functionality
 """
 
+import os
+# Suppress CrewAI's OpenTelemetry warning
+os.environ["OTEL_PYTHON_DISABLED"] = "true"
+
 import streamlit as st
 from crewai import Agent, Task, Crew
 from openai import OpenAI
 from dotenv import load_dotenv
-import os
 import json
 from enum import Enum
 from typing import List, Dict, Optional, Any, Union
@@ -47,6 +50,10 @@ class Stage(str, Enum):
     DESSERT = 'dessert'
     FINAL = 'final'
 
+# OpenAI Configuration
+MODEL = "gpt-3.5-turbo"  # Faster than GPT-4
+TEMPERATURE = 0.7  # Lower temperature for more focused responses
+
 # Initialize environment and OpenAI client
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -67,11 +74,12 @@ def create_sommelier_agent() -> Agent:
     return Agent(
         role='Expert Sommelier and Food Pairing Specialist',
         goal='Help create perfect food and wine pairings',
-        backstory="""You are an expert sommelier with decades of experience in wine 
-        and food pairing. You have a deep understanding of how flavors interact and
-        complement each other.""",
-        verbose=True,
-        allow_delegation=True,
+        backstory="""You are a renowned sommelier with decades of experience in wine
+        and food pairing. You have an encyclopedic knowledge of wines and their characteristics.""",
+        allow_delegation=True,  # Enable collaboration with Chef
+        verbose=True,  # Enable detailed logging
+        llm_model=MODEL,
+        temperature=TEMPERATURE
     )
 
 def create_chef_agent() -> Agent:
@@ -89,12 +97,12 @@ def create_chef_agent() -> Agent:
     return Agent(
         role='Expert Chef',
         goal='Create delicious and harmonious menu combinations',
-        backstory="""You are a master chef with decades of experience across multiple cuisines.
-        You understand flavor profiles, cooking techniques, seasonal ingredients, and how to
-        create balanced, memorable meals. You excel at designing cohesive menus that tell
-        a story through food.""",
-        verbose=True,
-        allow_delegation=True,
+        backstory="""You are an experienced chef with deep knowledge of flavors,
+        cooking techniques, and food pairings. You excel at creating cohesive menus.""",
+        allow_delegation=True,  # Enable collaboration with Sommelier
+        verbose=True,  # Enable detailed logging
+        llm_model=MODEL,
+        temperature=TEMPERATURE
     )
 
 # Helper Functions
@@ -330,6 +338,22 @@ def create_crew_tasks(stage: Stage, **kwargs) -> List[Task]:
         ]
     return []
 
+@st.cache_data(ttl=3600, show_spinner=False)  # Cache responses for 1 hour, hide the spinner
+def get_cached_suggestions(stage: Stage, **kwargs) -> Optional[List[Dict]]:
+    """
+    Cached version of get_crew_suggestions to improve response time.
+    
+    Args:
+        stage: Current stage of dinner planning
+        **kwargs: Stage-specific parameters
+        
+    Returns:
+        Optional[List[Dict]]: Cached suggestions from the crew
+    """
+    # Convert kwargs to a string for hashing
+    kwargs_str = json.dumps(kwargs, sort_keys=True)
+    return get_crew_suggestions(stage, **kwargs)
+
 def get_crew_suggestions(stage: Stage, **kwargs) -> Optional[List[Dict]]:
     """
     Gets suggestions (e.g., entree, appetizer, dessert) from the crew for the current stage.
@@ -348,7 +372,9 @@ def get_crew_suggestions(stage: Stage, **kwargs) -> Optional[List[Dict]]:
     try:
         crew = Crew(
             agents=[create_sommelier_agent(), create_chef_agent()],
-            tasks=tasks
+            tasks=tasks,
+            verbose=True,  # Enable detailed logging
+            process_timeout=300  # 5 minute timeout
         )
         result = crew.kickoff()
         
@@ -385,7 +411,7 @@ def handle_wine_stage():
     if wine_input and st.button("Get Entree Suggestions"):
         with st.spinner('Getting entree suggestions...'):
             st.session_state.wine = wine_input
-            suggestions = get_crew_suggestions(Stage.WINE, wine=wine_input)
+            suggestions = get_cached_suggestions(Stage.WINE, wine=wine_input)
             if suggestions:
                 st.session_state.entree_suggestions = suggestions
                 st.session_state.stage = Stage.ENTREE
@@ -421,7 +447,7 @@ def handle_entree_stage():
     if selected_item and st.button("Get Appetizer Suggestions"):
         with st.spinner('Getting appetizer suggestions...'):
             st.session_state.entree = selected_item
-            suggestions = get_crew_suggestions(
+            suggestions = get_cached_suggestions(
                 Stage.ENTREE,
                 wine=st.session_state.wine,
                 entree=selected_item['name']
@@ -462,7 +488,7 @@ def handle_appetizer_stage():
     if selected_item and st.button("Get Dessert Suggestions"):
         with st.spinner('Getting dessert suggestions...'):
             st.session_state.appetizer = selected_item
-            suggestions = get_crew_suggestions(
+            suggestions = get_cached_suggestions(
                 Stage.APPETIZER,
                 wine=st.session_state.wine,
                 entree=st.session_state.entree['name'],
@@ -505,7 +531,7 @@ def handle_dessert_stage():
     if selected_item and st.button("See Final Menu Analysis"):
         with st.spinner('Analyzing menu...'):
             st.session_state.dessert = selected_item
-            analysis = get_crew_suggestions(
+            analysis = get_cached_suggestions(
                 Stage.DESSERT,
                 wine=st.session_state.wine,
                 entree=st.session_state.entree['name'],
