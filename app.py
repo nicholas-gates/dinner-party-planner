@@ -1,3 +1,26 @@
+"""
+Dinner Party Planner Application
+
+This application helps users plan a dinner party by providing expert recommendations
+for wine and food pairings. It uses AI agents (Sommelier and Chef) to create a
+harmonious dining experience.
+
+The planning process follows these stages:
+1. Wine Selection: Get wine characteristics and pairing suggestions
+2. Entree Selection: Choose a main course that pairs well with the wine
+3. Appetizer Selection: Select starters that complement both wine and entree
+4. Dessert & Analysis: Complete the menu and get a final harmony analysis
+
+Key Components:
+- Stage: Enum tracking the current planning stage
+- Agents: Sommelier and Chef providing expert recommendations
+- CrewAI: Orchestrates the collaboration between agents
+- Streamlit: Handles the web interface and user interactions
+
+Environment Variables:
+    OPENAI_API_KEY: Required for AI agent functionality
+"""
+
 import streamlit as st
 from crewai import Agent, Task, Crew
 from openai import OpenAI
@@ -9,6 +32,15 @@ from typing import List, Dict, Optional, Any, Union
 
 # Constants and Configuration
 class Stage(str, Enum):
+    """
+    Tracks the current stage of dinner party planning.
+    
+    The stages must be completed in sequence:
+    WINE -> ENTREE -> APPETIZER -> DESSERT
+    
+    Each stage builds upon the selections made in previous stages to ensure
+    a cohesive dining experience.
+    """
     WINE = 'wine'
     ENTREE = 'entree'
     APPETIZER = 'appetizer'
@@ -21,7 +53,17 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Agent Definitions
 def create_sommelier_agent() -> Agent:
-    """Create and return the sommelier agent."""
+    """
+    Creates a Sommelier AI agent specialized in wine expertise.
+    
+    The Sommelier agent provides:
+    - Wine characteristics and flavor profiles
+    - Food pairing suggestions
+    - Professional wine knowledge and recommendations
+    
+    Returns:
+        Agent: Configured Sommelier agent with wine expertise
+    """
     return Agent(
         role='Expert Sommelier and Food Pairing Specialist',
         goal='Help create perfect food and wine pairings',
@@ -33,7 +75,17 @@ def create_sommelier_agent() -> Agent:
     )
 
 def create_chef_agent() -> Agent:
-    """Create and return the chef agent."""
+    """
+    Creates a Chef AI agent specialized in culinary expertise.
+    
+    The Chef agent provides:
+    - Menu suggestions based on wine selection
+    - Flavor combinations and progression
+    - Professional culinary knowledge and techniques
+    
+    Returns:
+        Agent: Configured Chef agent with culinary expertise
+    """
     return Agent(
         role='Expert Chef',
         goal='Create delicious and harmonious menu combinations',
@@ -47,7 +99,12 @@ def create_chef_agent() -> Agent:
 
 # Helper Functions
 def initialize_session_state():
-    """Initialize all session state variables."""
+    """
+    Initializes all session state variables.
+    
+    This function ensures that all required session state variables are set before
+    the application starts.
+    """
     if 'stage' not in st.session_state:
         st.session_state.stage = Stage.WINE
     if 'wine' not in st.session_state:
@@ -60,11 +117,23 @@ def initialize_session_state():
         st.session_state.dessert = None
 
 def validate_suggestion_format(suggestion: Dict) -> bool:
-    """Validate that a suggestion dictionary has the required fields."""
+    """
+    Validates that a suggestion dictionary has the required fields.
+    
+    Args:
+        suggestion: Dictionary containing the suggestion data
+    
+    Returns:
+        bool: True if the suggestion is valid, False otherwise
+    """
     return isinstance(suggestion, dict) and 'name' in suggestion and 'description' in suggestion
 
 def validate_suggestions(suggestions: Any) -> tuple[bool, Optional[str]]:
-    """Validate the suggestions data structure.
+    """
+    Validates the suggestions data structure.
+    
+    Args:
+        suggestions: Suggestions data structure
     
     Returns:
         tuple: (is_valid: bool, error_message: Optional[str])
@@ -84,11 +153,12 @@ def validate_suggestions(suggestions: Any) -> tuple[bool, Optional[str]]:
     return True, None
 
 def extract_json_from_response(response: str) -> Optional[str]:
-    """Extract JSON array or object from a response string.
+    """
+    Extracts JSON array or object from a response string.
     
     Args:
         response: The raw response string
-        
+    
     Returns:
         Optional[str]: The JSON string if found, None otherwise
     """
@@ -107,12 +177,13 @@ def extract_json_from_response(response: str) -> Optional[str]:
     return None
 
 def parse_crew_response(response: str, expect_analysis: bool = False) -> Optional[Union[List[Dict], Dict]]:
-    """Parse and validate the crew's response.
+    """
+    Parses and validates the crew's response.
     
     Args:
         response: Raw response string from the crew
         expect_analysis: If True, expect a single JSON object instead of an array
-        
+    
     Returns:
         Optional[Union[List[Dict], Dict]]: Parsed and validated response
     """
@@ -128,7 +199,7 @@ def parse_crew_response(response: str, expect_analysis: bool = False) -> Optiona
             if not isinstance(parsed, dict):
                 st.error("Expected analysis object but got: " + str(type(parsed)))
                 return None
-            return parsed
+            return parsed # return parsed analysis
             
         is_valid, error_msg = validate_suggestions(parsed)
         if not is_valid:
@@ -136,7 +207,7 @@ def parse_crew_response(response: str, expect_analysis: bool = False) -> Optiona
             st.error("Raw JSON: " + json_str[:200] + "...")
             return None
             
-        return parsed
+        return parsed # return parsed suggestions
         
     except json.JSONDecodeError as e:
         st.error(f"Failed to parse JSON: {str(e)}")
@@ -144,7 +215,25 @@ def parse_crew_response(response: str, expect_analysis: bool = False) -> Optiona
         return None
 
 def create_crew_tasks(stage: Stage, **kwargs) -> List[Task]:
-    """Create tasks for the current stage."""
+    """
+    Creates tasks for the AI crew based on the current planning stage.
+    
+    Each stage requires different expertise and considerations:
+    - WINE: Initial wine analysis
+    - ENTREE: Main course suggestions based on wine
+    - APPETIZER: Starter suggestions complementing wine and entree
+    - DESSERT: Dessert suggestions and final menu analysis
+    
+    Args:
+        stage: Current stage of dinner planning
+        **kwargs: Stage-specific parameters
+            - wine: str - Selected wine (required for all stages)
+            - entree: str - Selected entree (required for appetizer/dessert)
+            - appetizer: str - Selected appetizer (required for dessert)
+    
+    Returns:
+        List[Task]: Tasks for the AI crew to execute
+    """
     sommelier = create_sommelier_agent()
     chef = create_chef_agent()
     
@@ -242,7 +331,16 @@ def create_crew_tasks(stage: Stage, **kwargs) -> List[Task]:
     return []
 
 def get_crew_suggestions(stage: Stage, **kwargs) -> Optional[List[Dict]]:
-    """Get suggestions from the crew for the current stage."""
+    """
+    Gets suggestions (e.g., entree, appetizer, dessert) from the crew for the current stage.
+    
+    Args:
+        stage: Current stage of dinner planning
+        **kwargs: Stage-specific parameters
+    
+    Returns:
+        Optional[List[Dict]]: Suggestions from the crew
+    """
     tasks = create_crew_tasks(stage, **kwargs)
     if not tasks:
         return None
@@ -266,7 +364,21 @@ def get_crew_suggestions(stage: Stage, **kwargs) -> Optional[List[Dict]]:
 
 # Stage-specific Functions
 def handle_wine_stage():
-    """Handle the wine selection stage."""
+    """
+    Handles the wine selection stage.
+    
+    This function is responsible for:
+    1. Displaying the wine selection interface
+    2. Getting wine suggestions from the crew
+    3. Updating the session state with the selected wine
+    
+    Stage Progression:
+    - When user enters a wine and clicks "Get Entree Suggestions":
+        1. Saves the selected wine to session state
+        2. Fetches entree suggestions based on wine characteristics
+        3. Updates session state with new suggestions
+        4. Advances to ENTREE stage
+    """
     st.header("🍷 Wine Selection")
     wine_input = st.text_input("What type of wine would you like to plan your dinner around?")
     
@@ -280,7 +392,21 @@ def handle_wine_stage():
                 st.rerun()
 
 def handle_entree_stage():
-    """Handle the entree selection stage."""
+    """
+    Handles the entree selection stage.
+    
+    This function is responsible for:
+    1. Displaying the entree selection interface
+    2. Getting entree suggestions from the crew
+    3. Updating the session state with the selected entree
+    
+    Stage Progression:
+    - When user selects an entree and clicks "Get Appetizer Suggestions":
+        1. Saves the selected entree to session state
+        2. Fetches appetizer suggestions based on wine and entree pairing
+        3. Updates session state with new suggestions
+        4. Advances to APPETIZER stage
+    """
     st.header("🍖 Entree Selection")
     st.write(f"Selected Wine: {st.session_state.wine}")
     st.write("Choose your entree from these suggestions:")
@@ -306,7 +432,21 @@ def handle_entree_stage():
                 st.rerun()
 
 def handle_appetizer_stage():
-    """Handle the appetizer selection stage."""
+    """
+    Handles the appetizer selection stage.
+    
+    This function is responsible for:
+    1. Displaying the appetizer selection interface
+    2. Getting appetizer suggestions from the crew
+    3. Updating the session state with the selected appetizer
+    
+    Stage Progression:
+    - When user selects an appetizer and clicks "Get Dessert Suggestions":
+        1. Saves the selected appetizer to session state
+        2. Fetches dessert suggestions based on wine, entree, and appetizer
+        3. Updates session state with new suggestions
+        4. Advances to DESSERT stage
+    """
     st.header("🥗 Appetizer Selection")
     st.write(f"Selected Wine: {st.session_state.wine}")
     st.write(f"Selected Entree: {st.session_state.entree['name']}")
@@ -334,7 +474,21 @@ def handle_appetizer_stage():
                 st.rerun()
 
 def handle_dessert_stage():
-    """Handle the dessert selection stage."""
+    """
+    Handles the dessert selection stage.
+    
+    This function is responsible for:
+    1. Displaying the dessert selection interface
+    2. Getting dessert suggestions from the crew
+    3. Updating the session state with the selected dessert
+    
+    Stage Progression:
+    - When user selects a dessert and clicks "See Final Analysis":
+        1. Saves the selected dessert to session state
+        2. Fetches final menu analysis considering all selections
+        3. Updates session state with the analysis
+        4. Advances to final stage for complete menu review
+    """
     st.header("🍰 Dessert Selection")
     st.write(f"Selected Wine: {st.session_state.wine}")
     st.write(f"Selected Entree: {st.session_state.entree['name']}")
@@ -348,7 +502,7 @@ def handle_dessert_stage():
     selected_name = st.selectbox("Select your dessert:", list(options.keys()))
     selected_item = options[selected_name] if selected_name else None
     
-    if selected_item and st.button("Get Final Menu Analysis"):
+    if selected_item and st.button("See Final Menu Analysis"):
         with st.spinner('Analyzing menu...'):
             st.session_state.dessert = selected_item
             analysis = get_crew_suggestions(
@@ -367,7 +521,13 @@ def handle_dessert_stage():
                 st.rerun()
 
 def handle_final_stage():
-    """Handle the final menu analysis stage."""
+    """
+    Handles the final menu analysis stage.
+    
+    This function is responsible for:
+    - Displaying the final menu analysis
+    - Providing a summary of the selected menu
+    """
     st.header("🎉 Your Perfect Menu")
     
     col1, col2 = st.columns(2)
@@ -411,7 +571,11 @@ def handle_final_stage():
         st.rerun()
 
 def main():
-    """Main application entry point."""
+    """
+    Main application entry point.
+    
+    This function initializes the session state and handles the current stage.
+    """
     initialize_session_state()
     
     st.title("🍷 Dinner Party Menu Planner")
