@@ -31,7 +31,20 @@ sommelier = Agent(
     and food pairing. You have a deep understanding of how flavors interact and
     complement each other.""",
     verbose=True,
-    allow_delegation=False,
+    allow_delegation=True,
+    tools=[],  # Add any specific tools if needed
+)
+
+# Create the chef agent
+chef = Agent(
+    role='Expert Chef',
+    goal='Create delicious and harmonious menu combinations',
+    backstory="""You are a master chef with decades of experience across multiple cuisines.
+    You understand flavor profiles, cooking techniques, seasonal ingredients, and how to
+    create balanced, memorable meals. You excel at designing cohesive menus that tell
+    a story through food.""",
+    verbose=True,
+    allow_delegation=True,
     tools=[],  # Add any specific tools if needed
 )
 
@@ -65,14 +78,15 @@ def parse_analysis(result):
         return None
 
 def get_crew_response(task, response_type='suggestions'):
-    """Get response from crew with appropriate parsing.
-    
-    Args:
-        task: The task to perform
-        response_type: Either 'suggestions' for menu items or 'analysis' for final analysis
-    """
+    """Get response from crew with appropriate parsing."""
     try:
-        crew = Crew(agents=[sommelier], tasks=[task])
+        # Create crew with both agents
+        crew = Crew(
+            agents=[sommelier, chef],
+            tasks=[task]
+        )
+        
+        # Enable agent discussions for menu planning
         result = crew.kickoff()
         
         if response_type == 'suggestions':
@@ -100,19 +114,38 @@ if st.session_state.stage == 'wine':
     if wine_input and st.button("Get Entree Suggestions"):
         with st.spinner('Getting entree suggestions...'):
             st.session_state.wine = wine_input
-            task = Task(
-                description=f"""Suggest three dinner entrees that would pair well with {wine_input}. 
-                Return the response as a JSON array of objects with 'name' and 'description' fields.
-                Example format: [
-                    {{"name": "Grilled Ribeye Steak", "description": "Perfect with Cabernet's tannins"}},
-                    {{"name": "Braised Lamb Shanks", "description": "Rich flavors complement the wine"}},
-                    {{"name": "Duck Breast", "description": "Matches the wine's fruit notes"}}
-                ]""",
+            
+            # Create tasks for both agents
+            sommelier_task = Task(
+                description=f"""Analyze {wine_input} and provide its key characteristics and flavor profile.
+                Consider body, tannins, acidity, and primary flavors.""",
                 agent=sommelier
             )
-            result = get_crew_response(task)
+            
+            chef_task = Task(
+                description=f"""Based on the sommelier's analysis, suggest three dinner entrees that would create
+                perfect pairings. Consider cooking techniques that enhance the pairing.
+                Return the response as a JSON array of objects with 'name' and 'description' fields.
+                Example format: [
+                    {{"name": "Grilled Ribeye Steak", 
+                      "description": "Pan-seared to develop a caramelized crust, complementing the wine's structure"}},
+                    {{"name": "Braised Lamb Shanks", 
+                      "description": "Slow-cooked with herbs to match the wine's complexity"}},
+                    {{"name": "Duck Breast", 
+                      "description": "Crispy skin and medium-rare meat to balance the wine's characteristics"}}
+                ]""",
+                agent=chef
+            )
+            
+            # Create crew with sequential tasks
+            crew = Crew(
+                agents=[sommelier, chef],
+                tasks=[sommelier_task, chef_task]
+            )
+            
+            result = crew.kickoff()
             if result:
-                st.session_state.entree_suggestions = result
+                st.session_state.entree_suggestions = parse_suggestions(result)
                 st.session_state.stage = 'entree'
                 st.rerun()
 
@@ -133,19 +166,38 @@ elif st.session_state.stage == 'entree':
     if selected_item and st.button("Get Appetizer Suggestions"):
         with st.spinner('Getting appetizer suggestions...'):
             st.session_state.entree = selected_item
-            task = Task(
-                description=f"""Suggest three appetizers that would pair well with {st.session_state.wine} and {selected_item['name']}. 
-                Return the response as a JSON array of objects with 'name' and 'description' fields.
-                Example format: [
-                    {{"name": "Aged Cheddar Plate", "description": "Sharp flavors complement the wine"}},
-                    {{"name": "Mushroom Crostini", "description": "Earthy notes enhance the pairing"}},
-                    {{"name": "Beef Carpaccio", "description": "Light start that won't overwhelm"}}
-                ]""",
+            
+            # Create tasks for appetizer suggestions
+            sommelier_task = Task(
+                description=f"""Analyze how the appetizer should complement both {st.session_state.wine} 
+                and {selected_item['name']}. Consider progression of flavors through the meal.""",
                 agent=sommelier
             )
-            result = get_crew_response(task)
+            
+            chef_task = Task(
+                description=f"""Based on the sommelier's analysis, suggest three appetizers that create
+                a harmonious progression to {selected_item['name']}.
+                Return the response as a JSON array of objects with 'name' and 'description' fields.
+                Example format: [
+                    {{"name": "Seared Scallops", 
+                      "description": "Light and delicate start that prepares the palate"}},
+                    {{"name": "Wild Mushroom Crostini", 
+                      "description": "Earthy flavors that bridge to the main course"}},
+                    {{"name": "Citrus-Cured Salmon", 
+                      "description": "Fresh flavors that contrast and complement"}}
+                ]""",
+                agent=chef
+            )
+            
+            # Create crew with sequential tasks
+            crew = Crew(
+                agents=[sommelier, chef],
+                tasks=[sommelier_task, chef_task]
+            )
+            
+            result = crew.kickoff()
             if result:
-                st.session_state.appetizer_suggestions = result
+                st.session_state.appetizer_suggestions = parse_suggestions(result)
                 st.session_state.stage = 'appetizer'
                 st.rerun()
 
@@ -167,19 +219,38 @@ elif st.session_state.stage == 'appetizer':
     if selected_item and st.button("Get Dessert Suggestions"):
         with st.spinner('Getting dessert suggestions...'):
             st.session_state.appetizer = selected_item
-            task = Task(
-                description=f"""Suggest three desserts that would pair well with {st.session_state.wine}, {st.session_state.entree['name']}, 
-                and {selected_item['name']}. Return the response as a JSON array of objects with 'name' and 'description' fields.
-                Example format: [
-                    {{"name": "Dark Chocolate Truffles", "description": "Rich chocolate complements the wine"}},
-                    {{"name": "Berry Tart", "description": "Fresh fruits balance the meal"}},
-                    {{"name": "Creme Brulee", "description": "Creamy dessert cleanses the palate"}}
-                ]""",
+            
+            # Create tasks for dessert suggestions
+            sommelier_task = Task(
+                description=f"""Analyze how the dessert should complement both {st.session_state.wine} 
+                and {st.session_state.entree['name']}. Consider progression of flavors through the meal.""",
                 agent=sommelier
             )
-            result = get_crew_response(task)
+            
+            chef_task = Task(
+                description=f"""Based on the sommelier's analysis, suggest three desserts that create
+                a harmonious progression to {st.session_state.entree['name']}.
+                Return the response as a JSON array of objects with 'name' and 'description' fields.
+                Example format: [
+                    {{"name": "Dark Chocolate Truffles", 
+                      "description": "Rich chocolate complements the wine"}},
+                    {{"name": "Berry Tart", 
+                      "description": "Fresh fruits balance the meal"}},
+                    {{"name": "Creme Brulee", 
+                      "description": "Creamy dessert cleanses the palate"}}
+                ]""",
+                agent=chef
+            )
+            
+            # Create crew with sequential tasks
+            crew = Crew(
+                agents=[sommelier, chef],
+                tasks=[sommelier_task, chef_task]
+            )
+            
+            result = crew.kickoff()
             if result:
-                st.session_state.dessert_suggestions = result
+                st.session_state.dessert_suggestions = parse_suggestions(result)
                 st.session_state.stage = 'dessert'
                 st.rerun()
 
