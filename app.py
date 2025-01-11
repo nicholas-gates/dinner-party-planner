@@ -32,6 +32,7 @@ from dotenv import load_dotenv
 import json
 from enum import Enum
 from typing import List, Dict, Optional, Any, Union
+from auth import check_authentication
 
 # Constants and Configuration
 class Stage(str, Enum):
@@ -602,10 +603,22 @@ def main():
     
     This function initializes the session state and handles the current stage.
     """
+    st.set_page_config(
+        page_title="🍷 Dinner Party Planner",
+        page_icon="🍷",
+        layout="wide"
+    )
+    
+    # Check authentication before proceeding
+    check_authentication()
+    
     initialize_session_state()
     
     st.title("🍷 Dinner Party Menu Planner")
-    st.write("Let's plan your perfect dinner party menu based on your wine selection!")
+    
+    # Show current stage in sidebar
+    st.sidebar.header("Progress")
+    st.sidebar.info(f"Current Stage: {st.session_state.stage.value.title()}")
     
     # Handle current stage
     if st.session_state.stage == Stage.WINE:
@@ -616,8 +629,8 @@ def main():
         handle_appetizer_stage()
     elif st.session_state.stage == Stage.DESSERT:
         handle_dessert_stage()
-    elif st.session_state.stage == Stage.FINAL:
+    else:
         handle_final_stage()
-
+        
 if __name__ == "__main__":
     main()

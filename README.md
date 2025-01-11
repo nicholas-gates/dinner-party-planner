@@ -98,6 +98,45 @@ An AI-powered application that helps you plan the perfect dinner party by provid
 - The application uses environment variables for sensitive data
 - Always use a virtual environment to manage dependencies
 
+## Configuration
+
+### Environment Variables
+
+Create a `.env` file in the root directory with the following variables:
+
+```env
+# OpenAI API Key for GPT models
+OPENAI_API_KEY=your_api_key_here
+
+# Authentication Configuration
+AUTHORIZED_EMAILS=email1@domain.com,email2@domain.com
+AUTHORIZED_DOMAINS=company1.com,company2.com
+```
+
+- `OPENAI_API_KEY`: Your OpenAI API key for accessing GPT models
+- `AUTHORIZED_EMAILS`: Comma-separated list of email addresses that can access the app
+- `AUTHORIZED_DOMAINS`: Comma-separated list of email domains that can access the app (use "none" if not using domain-based auth)
+
+### Authentication
+
+The app uses Streamlit's built-in authentication system when deployed to Streamlit Cloud. Authentication behavior:
+
+- **Local Development**: 
+  - Authentication is bypassed
+  - A warning message appears in the sidebar
+  - All features are accessible
+
+- **Deployed (Streamlit Cloud)**:
+  - Users must log in via Streamlit's authentication
+  - Access is restricted to authorized emails/domains specified in `.env`
+  - Unauthorized users will see an error message
+
+To enable authentication when deploying:
+1. Deploy to Streamlit Cloud
+2. Go to your app's settings
+3. Under "Security & Privacy"
+4. Enable "Require users to authenticate"
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
