@@ -57,7 +57,16 @@ TEMPERATURE = 0.7  # Lower temperature for more focused responses
 
 # Initialize environment and OpenAI client
 load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    st.error("OpenAI API key not found. Please check your environment variables.")
+    st.stop()
+
+try:
+    client = OpenAI(api_key=api_key)
+except Exception as e:
+    st.error(f"Error initializing OpenAI client: {str(e)}")
+    st.stop()
 
 # Agent Definitions
 def create_sommelier_agent() -> Agent:
@@ -171,6 +180,11 @@ def extract_json_from_response(response: str) -> Optional[str]:
     Returns:
         Optional[str]: The JSON string if found, None otherwise
     """
+    # Look for Final Answer section in CrewAI output
+    final_answer_marker = "## Final Answer:"
+    if final_answer_marker in response:
+        response = response.split(final_answer_marker)[1].strip()
+    
     # For array responses
     array_start = response.find('[')
     array_end = response.rfind(']') + 1
@@ -206,7 +220,10 @@ def parse_crew_response(response: str, expect_analysis: bool = False) -> Optiona
         
         if expect_analysis:
             if not isinstance(parsed, dict):
-                st.error("Expected analysis object but got: " + str(type(parsed)))
+                st.error(f"Expected analysis object but got: {type(parsed)}")
+                return None
+            if not all(key in parsed for key in ["wine_pairing", "flavor_progression", "highlights", "overall_harmony"]):
+                st.error("Analysis is missing required fields")
                 return None
             return parsed # return parsed analysis
             
@@ -249,10 +266,9 @@ def create_crew_tasks(stage: Stage, **kwargs) -> List[Task]:
     if stage == Stage.WINE:
         return [
             Task(
-                description=f"""Analyze {kwargs['wine']} and provide its key characteristics and flavor profile.
-                Consider body, tannins, acidity, and primary flavors.
-                Format your response as a JSON string containing an array of wine characteristics.""",
-                agent=sommelier
+                description=f"Analyze {kwargs['wine']} and provide its key characteristics and flavor profile. Consider body, tannins, acidity, and primary flavors. Format your response as a JSON string containing an array of wine characteristics.",
+                agent=sommelier,
+                expected_output="A JSON object containing wine characteristics. Expected keys: \n- 'name': (string) The name of the wine.\n- 'body': (string) The body of the wine (e.g., light, medium, full).\n- 'tannins': (string) Description of tannins (e.g., low, medium, high).\n- 'acidity': (string) Description of acidity (e.g., low, medium, high).\n- 'flavors': (array of strings) List of primary flavors."
             ),
             Task(
                 description=f"""Based on the wine analysis, suggest three dinner entrees.
@@ -267,53 +283,34 @@ def create_crew_tasks(stage: Stage, **kwargs) -> List[Task]:
                     {{"name": "Duck Breast", 
                       "description": "Crispy skin and medium-rare meat to balance the wine's characteristics"}}
                 ]""",
-                agent=chef
+                agent=chef,
+                expected_output="A JSON array of objects representing entree suggestions. Each object should have: \n- 'name': (string) The name of the entree.\n- 'description': (string) A description of the entree."
             )
         ]
     elif stage == Stage.ENTREE:
         return [
             Task(
-                description=f"""Analyze how the appetizer should complement both {kwargs['wine']} 
-                and {kwargs['entree']}. Consider progression of flavors through the meal.""",
-                agent=sommelier
+                description=f"Analyze how the appetizer should complement both {kwargs['wine']} and {kwargs['entree']}. Consider progression of flavors through the meal.",
+                agent=sommelier,
+                expected_output="Analysis of how the appetizer complements the wine and entree. Expected keys: \n- 'analysis': (string) Detailed description of the pairing"
             ),
             Task(
-                description=f"""Based on the sommelier's analysis, suggest three appetizers that create
-                a harmonious progression to {kwargs['entree']}.
-                You MUST format your response as a JSON array of objects with 'name' and 'description' fields.
-                Do not include any other text before or after the JSON array.
-                Example format: [
-                    {{"name": "Seared Scallops", 
-                      "description": "Light and delicate start that prepares the palate"}},
-                    {{"name": "Wild Mushroom Crostini", 
-                      "description": "Earthy flavors that bridge to the main course"}},
-                    {{"name": "Citrus-Cured Salmon", 
-                      "description": "Fresh flavors that contrast and complement"}}
-                ]""",
-                agent=chef
+                description=f"Based on the sommelier's analysis, suggest three appetizers that create a harmonious progression to {kwargs['entree']}.",
+                agent=chef,
+                expected_output="A JSON array of objects representing appetizer suggestions. Each object should have: \n- 'name': (string) The name of the appetizer.\n- 'description': (string) A description of the appetizer."
             )
         ]
     elif stage == Stage.APPETIZER:
         return [
             Task(
-                description=f"""Analyze how the dessert should complement both {kwargs['wine']} 
-                and {kwargs['entree']}. Consider progression of flavors through the meal.""",
-                agent=sommelier
+                description=f"Analyze how the dessert should complement both {kwargs['wine']} and {kwargs['entree']}. Consider progression of flavors through the meal.",
+                agent=sommelier,
+                expected_output="Analysis of how the dessert complements the wine and entree. Expected keys: \n- 'analysis': (string) Detailed description of the pairing."
             ),
             Task(
-                description=f"""Based on the sommelier's analysis, suggest three desserts that create
-                a harmonious progression to {kwargs['entree']}.
-                You MUST format your response as a JSON array of objects with 'name' and 'description' fields.
-                Do not include any other text before or after the JSON array.
-                Example format: [
-                    {{"name": "Dark Chocolate Truffles", 
-                      "description": "Rich chocolate complements the wine"}},
-                    {{"name": "Berry Tart", 
-                      "description": "Fresh fruits balance the meal"}},
-                    {{"name": "Creme Brulee", 
-                      "description": "Creamy dessert cleanses the palate"}}
-                ]""",
-                agent=chef
+                description=f"Based on the sommelier's analysis, suggest three desserts that create a harmonious progression to {kwargs['entree']}.",
+                agent=chef,
+                expected_output="A JSON array of objects representing dessert suggestions. Each object should have: \n- 'name': (string) The name of the dessert.\n- 'description': (string) A description of the dessert."
             )
         ]
     elif stage == Stage.DESSERT:
@@ -328,13 +325,13 @@ def create_crew_tasks(stage: Stage, **kwargs) -> List[Task]:
                 The response must be a valid JSON object with exactly this structure:
                 {{
                     "wine_pairing": "Detailed analysis of how the wine pairs with each course",
-                    "flavor_progression": "How flavors develop from appetizer through dessert",
-                    "highlights": "Notable flavor combinations and interactions",
-                    "overall_harmony": "Assessment of the menu's overall balance"
+                    "flavor_progression": "Analysis of how flavors progress through the meal",
+                    "highlights": "Notable flavor combinations and standout elements",
+                    "overall_harmony": "Assessment of how well the entire menu works together"
                 }}
-                
-                Do not include any text before or after the JSON object.""",
-                agent=sommelier
+                """,
+                agent=sommelier,
+                expected_output="A JSON object containing the menu analysis with required fields: wine_pairing, flavor_progression, highlights, overall_harmony"
             )
         ]
     return []
@@ -379,14 +376,24 @@ def get_crew_suggestions(stage: Stage, **kwargs) -> Optional[List[Dict]]:
         )
         result = crew.kickoff()
         
+        # Extract the raw output from CrewOutput object
+        if hasattr(result, 'raw_output'):
+            response_text = str(result.raw_output)
+        else:
+            response_text = str(result)  # Fallback to string representation
+            
         return parse_crew_response(
-            response=result,
+            response=response_text,
             expect_analysis=(stage == Stage.DESSERT)
         )
         
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
-        st.error("Full response: " + result[:200] + "...")
+        if hasattr(result, 'raw_output'):
+            error_details = str(result.raw_output)[:200] + "..." if len(str(result.raw_output)) > 200 else str(result.raw_output)
+            st.error(f"Full response: {error_details}")
+        else:
+            st.error("No additional error details available")
         return None
 
 # Stage-specific Functions
