@@ -222,10 +222,46 @@ def parse_crew_response(response: str, expect_analysis: bool = False) -> Optiona
             if not isinstance(parsed, dict):
                 st.error(f"Expected analysis object but got: {type(parsed)}")
                 return None
-            if not all(key in parsed for key in ["wine_pairing", "flavor_progression", "highlights", "overall_harmony"]):
-                st.error("Analysis is missing required fields")
+            
+            # Check for required top-level keys
+            required_keys = ["wine_pairing", "flavor_progression", "highlights", "overall_harmony"]
+            if not all(key in parsed for key in required_keys):
+                st.error(f"Analysis is missing required fields. Expected: {required_keys}")
                 return None
-            return parsed # return parsed analysis
+                
+            # Convert nested structures to flat format if needed
+            if isinstance(parsed["wine_pairing"], dict):
+                # Extract main wine pairing text from nested structure
+                wine_pairing = parsed["wine_pairing"]
+                wine_text = []
+                if "appetizer_pairing" in wine_pairing:
+                    wine_text.append(f"Appetizer: {wine_pairing['appetizer_pairing']['description']}")
+                if "entree_pairing" in wine_pairing:
+                    wine_text.append(f"Entree: {wine_pairing['entree_pairing']['description']}")
+                if "dessert_pairing" in wine_pairing:
+                    wine_text.append(f"Dessert: {wine_pairing['dessert_pairing']['description']}")
+                parsed["wine_pairing"] = "\n".join(wine_text)
+            
+            # Convert nested flavor progression if needed
+            if isinstance(parsed["flavor_progression"], dict):
+                progression = parsed["flavor_progression"]
+                parsed["flavor_progression"] = "\n".join([
+                    f"Appetizer: {progression.get('appetizer', '')}",
+                    f"Entree: {progression.get('entree', '')}",
+                    f"Dessert: {progression.get('dessert', '')}"
+                ])
+            
+            # Convert nested highlights if needed
+            if isinstance(parsed["highlights"], dict):
+                highlights = parsed["highlights"]
+                all_highlights = []
+                if "notable_combinations" in highlights:
+                    all_highlights.extend(highlights["notable_combinations"])
+                if "standout_elements" in highlights:
+                    all_highlights.extend(highlights["standout_elements"])
+                parsed["highlights"] = all_highlights
+            
+            return parsed
             
         is_valid, error_msg = validate_suggestions(parsed)
         if not is_valid:
@@ -233,7 +269,7 @@ def parse_crew_response(response: str, expect_analysis: bool = False) -> Optiona
             st.error("Raw JSON: " + json_str[:200] + "...")
             return None
             
-        return parsed # return parsed suggestions
+        return parsed
         
     except json.JSONDecodeError as e:
         st.error(f"Failed to parse JSON: {str(e)}")
