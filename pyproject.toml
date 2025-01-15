@@ -1,0 +1,12 @@
+[project]
+name = "dinner-party-planner"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "crewai>=0.95.0",
+    "openai>=1.59.7",
+    "python-dotenv>=1.0.1",
+    "streamlit>=1.41.1",
+]
