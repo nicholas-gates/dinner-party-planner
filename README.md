@@ -137,6 +137,114 @@ To enable authentication when deploying:
 3. Under "Security & Privacy"
 4. Enable "Require users to authenticate"
 
+## 🛠 mini_app_no_crewai.py Overview
+
+The `mini_app_no_crewai.py` is a streamlined version of the Dinner Party Planner application that focuses solely on wine analysis without the complexity of orchestrating multiple AI agents. This version utilizes the OpenAI API to provide detailed wine analysis based on user input.
+
+### 🌟 Application Flow
+
+1. **User Input**:
+   - The user enters the name of a wine they wish to analyze.
+   - The input is captured using Streamlit's text input widget.
+
+2. **Wine Analysis**:
+   - Upon clicking the "Analyze Wine" button, the app creates an instance of the [WineAnalyzerTool](cci:2://file:///Users/ngates/Code/python/dinner-party-planner/mini_app.py:46:0-98:17).
+   - This tool is responsible for interacting with the OpenAI API to fetch wine analysis.
+
+3. **OpenAI API Interaction**:
+   - The [WineAnalyzerTool](cci:2://file:///Users/ngates/Code/python/dinner-party-planner/mini_app.py:46:0-98:17) sends a request to the OpenAI API, utilizing the function calling feature to analyze the wine.
+   - The request includes predefined schemas that specify the expected output format, including characteristics, pairing suggestions, and serving recommendations.
+
+4. **Response Handling**:
+   - The app receives a structured response from the OpenAI API, which includes the analysis results.
+   - The response is parsed, and validation is performed to ensure all required fields are present.
+
+5. **Display Results**:
+   - The analyzed results are displayed to the user in a structured format, including:
+     - Characteristics of the wine
+     - Suggested food pairings
+     - Serving recommendations
+   - The user can also click the "Start Over" button to reset the application state.
+
+### 🛠 Tech Stack
+
+- **Python 3.12+**: The core programming language for the application.
+- **Streamlit**: A web application framework used for building the user interface.
+- **OpenAI API**: Powers the wine analysis functionality, providing detailed insights based on user input.
+- **python-dotenv**: Manages environment variables for secure API key handling.
+- **Pydantic**: Used for data validation and settings management.
+
+### 🤖 OpenAI API Features
+
+- **Function Calling**: The application leverages the OpenAI API's function calling capability to provide structured responses. This allows the model to return data in a predefined format, ensuring that all necessary information is included in the response.
+- **Inputs**:
+  - Wine name entered by the user.
+- **Outputs**:
+  - A structured JSON response containing:
+    - `characteristics`: A detailed description of the wine.
+    - `pairing_suggestions`: Recommendations for food that pairs well with the wine.
+    - `serving_recommendations`: Suggestions for serving temperature and glass type.
+
+### 📦 OpenAI API Response Format
+
+When the application makes a request to the OpenAI API using the function calling feature, it receives a structured response that includes various components. Below is an example of such a response:
+
+```
+ChatCompletion(id='chatcmpl-Ar2jR4YGR0WiDbr7pKunWP7n0MtVI', 
+choices=[Choice(finish_reason='stop', index=0, logprobs=None, 
+message=ChatCompletionMessage(content=None, role='assistant', 
+function_call=FunctionCall(arguments='{"characteristics":"The 2018 Caymus Cabernet Sauvignon is a rich and opulent wine with deep purple color. It offers enticing aromas of dark fruit, blackberries, cassis, and hints of vanilla and oak. On the palate, it is full-bodied with velvety tannins and flavors of ripe black cherries, plums, and a touch of spice. The wine has a long, smooth finish with a lingering presence of fruit and oak.","pairing_suggestions":"This Cabernet Sauvignon pairs beautifully with grilled meats such as ribeye steak, lamb chops, or a hearty beef stew. It also goes well with aged cheddar cheese or dark chocolate.","serving_recommendations":"Serve this wine at around 60-65°F (15-18°C) to bring out its full flavors. Decanting is recommended to allow the wine to breathe and open up. Use a large, tulip-shaped glass to enhance the aromas and flavors of the wine."}', name='analyze_wine'), tool_calls=None, refusal=None))], 
+created=1737205249, model='gpt-3.5-turbo-0125', object='chat.completion', 
+system_fingerprint=None, usage=CompletionUsage(completion_tokens=206, 
+prompt_tokens=177, total_tokens=383, 
+prompt_tokens_details={'cached_tokens': 0, 'audio_tokens': 0}, 
+completion_tokens_details={'reasoning_tokens': 0, 'audio_tokens': 0, 
+accepted_prediction_tokens=0, rejected_prediction_tokens=0}), 
+service_tier='default')
+```
+
+#### Key Components of the Response:
+
+1. **ChatCompletion Object**: The main response object that contains various fields:
+   - `id`: Unique identifier for the completion request.
+   - `model`: The version of the model used for the request.
+
+2. **Choices**: A list of possible completions generated by the model. Each choice contains:
+   - `message`: Includes the role (e.g., assistant) and the content of the response.
+   - `function_call`: Contains the arguments returned by the function.
+
+3. **Function Call**: When the model is instructed to analyze wine, it generates a structured response that includes:
+   - `arguments`: A JSON string containing the analysis results:
+     - `characteristics`: Description of the wine.
+     - `pairing_suggestions`: Food pairing recommendations.
+     - `serving_recommendations`: Suggestions for serving temperature and glass type.
+
+4. **Usage Information**: Details about token usage, including:
+   - `completion_tokens`: Number of tokens used in the completion.
+   - `prompt_tokens`: Number of tokens used in the prompt.
+   - `total_tokens`: Total number of tokens used in the request.
+
+### 📋 Example Usage
+
+1. **Run the Application**:
+   ```bash
+   streamlit run mini_app_no_crewai.py
+   ```
+
+2. **Enter Wine Name**:
+   - Input a wine name, such as "2018 Caymus Cabernet Sauvignon".
+
+3. **Analyze Wine**:
+   - Click the "Analyze Wine" button to receive detailed analysis and recommendations.
+
+4. **View Results**:
+   - The application displays the characteristics, food pairings, and serving recommendations for the selected wine.
+
+### 🔒 Security
+
+- Ensure that your OpenAI API key is stored securely in a `.env` file and not hardcoded in the application.
+- The application requires an active internet connection for OpenAI API functionality.
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
