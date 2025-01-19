@@ -22,7 +22,7 @@ An AI-powered application that helps you plan the perfect dinner party by provid
 
 - Python 3.12 or higher
 - OpenAI API key
-- pip (Python package installer)
+- uv (Python package installer)
 
 ## 🚀 Getting Started
 
@@ -32,25 +32,21 @@ An AI-powered application that helps you plan the perfect dinner party by provid
    cd dinner-party-planner
    ```
 
-2. **Set up a virtual environment** (recommended)
+2. **Set up a virtual environment and install dependencies**
    ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows, use: venv\Scripts\activate
+   uv venv
+   source .venv/bin/activate  # On Windows, use: .venv\Scripts\activate
+   uv pip sync
    ```
 
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Configure environment variables**
+3. **Configure environment variables**
    - Create a `.env` file in the project root
    - Add your OpenAI API key:
      ```
      OPENAI_API_KEY=your_api_key_here
      ```
 
-5. **Run the application**
+4. **Run the application**
    ```bash
    streamlit run app.py
    ```
@@ -244,6 +240,90 @@ service_tier='default')
 
 - Ensure that your OpenAI API key is stored securely in a `.env` file and not hardcoded in the application.
 - The application requires an active internet connection for OpenAI API functionality.
+
+## 🛠 mini_app_crewai.py Overview
+
+The `mini_app_crewai.py` is an enhanced version of the wine analysis application that demonstrates the integration of CrewAI framework with OpenAI's API. This version provides detailed wine analysis through a specialized AI agent system.
+
+### 🔍 Key Components
+
+1. **WineAnalysis Model (Pydantic)**
+   - Structured data model for wine analysis results
+   - Fields include:
+     - `characteristics`: Detailed description of wine's aroma, taste, body, and finish
+     - `pairing_suggestions`: Food pairing recommendations
+     - `serving_recommendations`: Temperature and serving guidance
+   - Includes data validation and example schemas
+
+2. **WineAnalyzerAgent**
+   - Specialized CrewAI agent with wine expertise
+   - Utilizes OpenAI's GPT-3.5-turbo model
+   - Provides structured wine analysis through function calling
+   - Includes comprehensive error handling and logging
+
+3. **Streamlit Interface**
+   - User-friendly web interface
+   - Features:
+     - Wine input field
+     - Analysis trigger button
+     - Reset functionality
+     - Structured results display
+
+### 🔄 Application Flow
+
+1. User enters a wine name
+2. WineAnalyzerAgent processes the request
+3. OpenAI API generates structured analysis
+4. Results are validated and displayed
+5. Session state manages the application data
+
+### 🚀 Potential Improvements
+
+1. **Error Handling & Validation**
+   - Input validation for wine names
+   - More robust API error handling
+   - Better user feedback for errors
+
+2. **Performance Optimization**
+   - Implementation of caching
+   - Rate limiting for API calls
+   - Request timeout handling
+
+3. **Security Enhancements**
+   - More robust API key validation
+   - Input sanitization
+   - Rate limiting implementation
+
+4. **User Experience**
+   - Loading states for better feedback
+   - Wine type suggestions/autocomplete
+   - Export functionality for analysis results
+
+5. **Code Architecture**
+   - Better utilization of CrewAI features
+   - Configuration management
+   - Memory management for session state
+   - Retry logic for API calls
+
+### ⚠️ Known Issues
+
+1. **CrewAI Integration**
+   - Not fully utilizing CrewAI's Task and Crew features
+   - Potential for enhanced agent collaboration
+
+2. **Memory Management**
+   - Unbounded session state growth
+   - Need for cleanup of old analyses
+
+3. **Performance**
+   - No request timeout handling
+   - Missing caching implementation
+
+4. **Security**
+   - Basic API key validation
+   - Limited input sanitization
+
+The application provides a solid foundation for wine analysis but could benefit from the suggested improvements for production use.
 
 ## 🤝 Contributing
 
