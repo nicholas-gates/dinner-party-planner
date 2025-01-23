@@ -35,21 +35,30 @@ def check_authentication() -> None:
     Verify user authentication and authorization.
     Stops app execution if user is not authorized.
     
-    When running locally:
-        - Shows development mode warning
-        - Allows all access
-    
-    When deployed:
+    When STREAMLIT_DEPLOYED="true":
         - Requires user authentication
         - Checks email against authorized lists
         - Shows appropriate success/error messages
-    """
-    # Check if running on Streamlit Cloud (deployed) or locally
-    is_deployed = st.session_state.get("user") is not None
     
-    if not is_deployed:
+    When STREAMLIT_DEPLOYED="false":
+        - Shows development mode warning
+        - Allows all access
+        
+    For all other cases:
+        - Blocks access completely
+    """
+    # Check if explicitly set to development mode
+    is_dev_mode = os.getenv('STREAMLIT_DEPLOYED', '').lower() == 'false'
+    
+    if is_dev_mode:
         st.sidebar.warning("⚠️ Running in development mode (no authentication)")
         return
+        
+    # Ensure authentication is enabled and user is logged in
+    if not st.session_state.get("user"):
+        st.error("⚠️ Authentication is required.")
+        st.info("This app requires proper authentication configuration. Please contact the administrator.")
+        st.stop()
         
     user_email = st.session_state.user.email
     domain = user_email.split("@")[1]
