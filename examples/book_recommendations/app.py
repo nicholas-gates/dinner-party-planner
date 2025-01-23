@@ -3,9 +3,14 @@ from models import BookRecommendation
 from agents.book_agent import create_book_agent
 from agents.cross_domain_agent import create_cross_domain_agent
 from utils import logger
+from auth import check_authentication
 
 def main():
     logger.info("Starting Book Recommendation System")
+    
+    # Check user authentication
+    check_authentication()
+    
     st.title("📚 Book Recommendation System")
     st.write("""
     Welcome to the Book Recommendation System! Tell me what kind of books you're interested in,
