@@ -3,7 +3,7 @@ from models import BookRecommendation
 from agents.book_agent import create_book_agent
 from agents.cross_domain_agent import create_cross_domain_agent
 from utils import logger
-from auth import check_authentication
+from .auth import check_authentication
 
 def main():
     logger.info("Starting Book Recommendation System")
