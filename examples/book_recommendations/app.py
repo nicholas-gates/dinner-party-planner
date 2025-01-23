@@ -3,13 +3,13 @@ from models import BookRecommendation
 from agents.book_agent import create_book_agent
 from agents.cross_domain_agent import create_cross_domain_agent
 from utils import logger
-from .auth import check_authentication
+import auth
 
 def main():
     logger.info("Starting Book Recommendation System")
     
     # Check user authentication
-    check_authentication()
+    auth.check_authentication()
     
     st.title("📚 Book Recommendation System")
     st.write("""
