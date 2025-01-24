@@ -3,3 +3,4 @@
 __pycache__
 *.code-workspace
 .DS_Store
+examples/book_recommendations/.streamlit/secrets.toml
